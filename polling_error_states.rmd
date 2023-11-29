@@ -90,6 +90,8 @@ ggplot(data = plotting_data, aes(x = vote_share_two_way_dem, y = margin_bias_dem
     labs(title = "Polling Margin Bias by Biden Vote Share", x = "Biden Two-Way Vote Share (2020)", y = "Mean Margin Bias") + 
     facet_wrap(~methodology)
 
+ggsave("state_year_error_method.png")
+
 ggplot(data = plotting_data, aes(x = vote_share_two_way_dem, y = margin_bias_dem)) +
     geom_hline(yintercept = 0) +
     geom_point(stroke = 0, alpha = .10) +
@@ -98,6 +100,8 @@ ggplot(data = plotting_data, aes(x = vote_share_two_way_dem, y = margin_bias_dem
     theme(legend.position="top") +
     labs(title = "Polling Margin Bias by Biden Vote Share", x = "Biden Two-Way Vote Share (2020)", y = "Mean Margin Bias") + 
     facet_wrap(~year)
+
+ggsave("state_year_error.png") 
 
 ```
 
