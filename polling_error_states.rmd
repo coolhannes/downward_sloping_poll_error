@@ -1,0 +1,104 @@
+
+```{r}
+library(readr)
+library(tidyverse)
+
+mit_potus_data <- read_csv("1976-2020-president.csv")
+
+state_potus_2020 <- mit_potus_data %>%
+    filter(year == 2020) %>%
+    rename(state_code = state_po) %>%
+    group_by(state_code) %>%
+    summarize(
+        potus_votes_dem = sum(ifelse(party_detailed == "DEMOCRAT", candidatevotes, 0), na.rm=T),
+        potus_votes_gop = sum(ifelse(party_detailed == "REPUBLICAN", candidatevotes, 0), na.rm=T)
+    ) %>%
+    ungroup() %>%
+    mutate(
+        vote_share_two_way_dem = potus_votes_dem / (potus_votes_dem + potus_votes_gop)
+    )
+
+fivethirtyeight_polls <- read_csv("https://raw.githubusercontent.com/fivethirtyeight/data/master/pollster-ratings/raw-polls.csv")
+
+state_polls <- fivethirtyeight_polls %>%
+    filter( 
+        type_simple %in% c("Pres-G","Sen-G", "Gov-G")
+        & !(methodology %in% c("Face-to-face", "Mail"))
+        & location != "US"
+        & year %in% c(2008, 2010, 2012, 2014, 2016, 2018, 2020, 2022)
+    ) %>%
+    mutate(
+        state_code = substr(location,0,2),
+        state_code = case_when(
+            state_code %in% c("N1","N2") ~ "NE",
+            state_code %in% c("M1","M2") ~ "ME",
+            TRUE ~ state_code
+        ),
+        methodology = ifelse(grepl("/", methodology, fixed=TRUE), "Mixed Mode", methodology)
+    ) %>%
+    rename(
+        sample_size = samplesize,
+        margin_bias_dem = bias,
+        district = location
+    ) %>%
+    select(
+        year,
+        state_code,
+        district,
+        type_simple,
+        type_detail,
+        partisan,
+        methodology,
+        sample_size,
+        margin_bias_dem
+    ) 
+
+swings <- c("AZ","FL","GA","IA","ME","MI","MN","NE","NV","NH","NC","OH","PA","TX","WI")
+
+state_polls <- state_polls %>%
+    mutate(
+        year = as.factor(year),
+        is_swing = case_when(
+            state_code %in% swings ~ "Swing State",
+            TRUE ~ "Non-swing State"
+        )
+    )
+
+state_polls_avg <- state_polls %>%
+    group_by(year, state_code, methodology) %>%
+    summarize(margin_bias_dem = mean(margin_bias_dem, na.rm = T)) %>%
+    ungroup()
+
+```
+
+
+```{r}
+
+plotting_data <- state_polls_avg %>%
+    left_join(state_potus_2020, by = c("state_code"))
+
+```
+
+```{r}
+
+ggplot(data = plotting_data, aes(x = vote_share_two_way_dem, y = margin_bias_dem, color = year)) +
+    geom_hline(yintercept = 0) +
+    geom_point(stroke = 0, alpha = .10) +
+    geom_smooth(method = "lm", se = FALSE) + 
+    theme_minimal() + 
+    theme(legend.position="right") +
+    labs(title = "Polling Margin Bias by Biden Vote Share", x = "Biden Two-Way Vote Share (2020)", y = "Mean Margin Bias") + 
+    facet_wrap(~methodology)
+
+ggplot(data = plotting_data, aes(x = vote_share_two_way_dem, y = margin_bias_dem)) +
+    geom_hline(yintercept = 0) +
+    geom_point(stroke = 0, alpha = .10) +
+    geom_smooth(method = "lm", se = FALSE) + 
+    theme_minimal() + 
+    theme(legend.position="top") +
+    labs(title = "Polling Margin Bias by Biden Vote Share", x = "Biden Two-Way Vote Share (2020)", y = "Mean Margin Bias") + 
+    facet_wrap(~year)
+
+```
+
+
